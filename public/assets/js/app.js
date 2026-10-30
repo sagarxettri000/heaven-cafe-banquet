@@ -377,6 +377,11 @@ const form = $('#bookingForm');
 const statusEl = $('#formStatus');
 const submitBtn = $('#submitBtn');
 
+// The Vercel mirror is static, so its form posts to the API on the primary host.
+const API_ORIGIN = location.hostname.endsWith('.vercel.app')
+  ? 'https://site-be89af870951464090c3884b578cdafa.freebuff.page'
+  : '';
+
 const MSG = {
   en: {
     name: 'Please enter your name (2–60 characters).',
@@ -481,7 +486,7 @@ form?.addEventListener('submit', async (e) => {
   submitBtn.textContent = t('sending');
 
   try {
-    const res = await fetch('/api/bookings', {
+    const res = await fetch(`${API_ORIGIN}/api/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

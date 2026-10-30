@@ -10,6 +10,12 @@ const EVENT_TYPES = ['table', 'wedding', 'birthday', 'corporate', 'other'];
 const RATE_LIMIT = 5;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
+// The same site is also published on Vercel, which talks to this API cross-origin.
+// Only our own Vercel project hosts are accepted; everything else is refused.
+const ALLOWED_ORIGINS = [/^https:\/\/heaven-cafe-banquet(?:-[a-z0-9]+)*\.vercel\.app$/];
+const isAllowedOrigin = (origin) =>
+  typeof origin === 'string' && ALLOWED_ORIGINS.some((re) => re.test(origin));
+
 const json = (body, status = 200, extra = {}) =>
   new Response(JSON.stringify(body), {
     status,
@@ -92,9 +98,11 @@ function validateBooking(body) {
 async function handleBooking(request, env) {
   const url = new URL(request.url);
 
-  // Same-origin only: a foreign Origin means a cross-site post.
+  // Same-origin, or one of our own Vercel hosts.
   const origin = request.headers.get('origin');
-  if (origin && origin !== url.origin) return json({ error: 'Forbidden' }, 403);
+  if (origin && origin !== url.origin && !isAllowedOrigin(origin)) {
+    return json({ error: 'Forbidden' }, 403);
+  }
 
   if (!(request.headers.get('content-type') || '').includes('application/json')) {
     return json({ error: 'Expected JSON' }, 415);
@@ -167,15 +175,34 @@ async function handleApi(request, env) {
   }
 
   if (pathname === '/api/bookings') {
+    const origin = request.headers.get('origin');
+    const cors = isAllowedOrigin(origin)
+      ? {
+          'access-control-allow-origin': origin,
+          'access-control-allow-methods': 'POST, OPTIONS',
+          'access-control-allow-headers': 'content-type',
+          'access-control-max-age': '600',
+          vary: 'Origin',
+        }
+      : {};
+
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
     if (request.method === 'POST') {
+      let response;
       try {
-        return await handleBooking(request, env);
+        response = await handleBooking(request, env);
       } catch (err) {
         console.error('booking failed', err);
-        return json({ error: 'Could not save your request' }, 500);
+        response = json({ error: 'Could not save your request' }, 500);
       }
+      if (!Object.keys(cors).length) return response;
+      const headers = new Headers(response.headers);
+      for (const [key, value] of Object.entries(cors)) headers.set(key, value);
+      return new Response(response.body, { status: response.status, headers });
     }
-    return json({ error: 'Method not allowed' }, 405, { allow: 'POST' });
+
+    return json({ error: 'Method not allowed' }, 405, { allow: 'POST, OPTIONS', ...cors });
   }
 
   return json({ error: 'Not found' }, 404);

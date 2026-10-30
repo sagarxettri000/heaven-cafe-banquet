@@ -4,6 +4,7 @@ The website for a cafe-and-banquet venue in Mulpani, Kathmandu: a quiet cafe by 
 spaces by night. Bilingual (English / Nepali), fully static, with one small API for booking enquiries.
 
 **Live:** https://site-be89af870951464090c3884b578cdafa.freebuff.page
+**Mirror:** https://heaven-cafe-banquet.vercel.app
 
 ## What's in it
 
@@ -57,8 +58,16 @@ npx wrangler d1 execute heaven-bookings --local \
 
 ## Deploying
 
-Deployed to Freebuff Sites as a Worker with static assets and a D1 binding named `DB`
+Primary host is Freebuff Sites, as a Worker with static assets and a D1 binding named `DB`
 (`sites.json`). `sites_add_storage` provisions the database; the binding attaches on the next deploy.
+
+Vercel publishes the same `public/` folder as a static mirror, configured by `vercel.json` — Vercel
+cannot run the D1 Worker, so that copy has no `/api` of its own. Instead the page reads its host and
+posts bookings to the primary API cross-origin (`API_ORIGIN` in [`public/assets/js/app.js`](public/assets/js/app.js)),
+and the Worker accepts that origin through an explicit allowlist plus a CORS preflight. Keep
+`ALLOWED_ORIGINS` in [`worker/index.js`](worker/index.js) and the `connect-src` in `vercel.json` in
+sync whenever a hostname changes. Everything still lands in one database.
+
 Update `canonical`, `og:url`, `og:image` and the JSON-LD `url` in `public/index.html` plus
 `robots.txt`/`sitemap.xml` if the site moves to a custom domain.
 

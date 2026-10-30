@@ -166,4 +166,46 @@ await test('missing D1 reports 503 rather than crashing', async () => {
   assert.equal(res.status, 503);
 });
 
+await test('the Vercel mirror may post cross-origin and gets CORS headers', async () => {
+  const { env, calls } = makeEnv();
+  const vercel = 'https://heaven-cafe-banquet.vercel.app';
+  const res = await worker.fetch(post(valid, { origin: vercel }), env);
+  assert.equal(res.status, 201);
+  assert.equal(res.headers.get('access-control-allow-origin'), vercel);
+  assert.match(res.headers.get('vary') || '', /origin/i);
+  assert.equal(calls.rows.length, 1);
+});
+
+await test('a look-alike Vercel origin is refused', async () => {
+  const { env } = makeEnv();
+  for (const bad of ['https://heaven-cafe-banquet.vercel.app.evil.test', 'https://heaven-cafe-banquet.evil.app']) {
+    const res = await worker.fetch(post(valid, { origin: bad }), env);
+    assert.equal(res.status, 403, bad);
+    assert.equal(res.headers.get('access-control-allow-origin'), null);
+  }
+});
+
+await test('preflight is answered for the allowed origin only', async () => {
+  const { env } = makeEnv();
+  const okRes = await worker.fetch(
+    new Request(`${origin}/api/bookings`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://heaven-cafe-banquet.vercel.app', 'access-control-request-method': 'POST' },
+    }),
+    env,
+  );
+  assert.equal(okRes.status, 204);
+  assert.equal(okRes.headers.get('access-control-allow-origin'), 'https://heaven-cafe-banquet.vercel.app');
+  assert.match(okRes.headers.get('access-control-allow-methods') || '', /POST/);
+
+  const foreign = await worker.fetch(
+    new Request(`${origin}/api/bookings`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' },
+    }),
+    env,
+  );
+  assert.equal(foreign.headers.get('access-control-allow-origin'), null);
+});
+
 console.log(`\n${passed} checks passed`);
