@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://site-be89af870951464090c3884b578cdafa.freebuff.page/sitemap.xml

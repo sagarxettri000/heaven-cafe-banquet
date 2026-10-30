@@ -1,0 +1,17 @@
+{
+  "name": "heaven-cafe-banquet",
+  "version": "1.0.0",
+  "description": "Bilingual English/Nepali site for Heaven Cafe & Banquet in Mulpani, Kathmandu — static site plus a D1-backed booking API on a Cloudflare Worker.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test": "node test/api.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "^4.156.0"
+  },
+  "private": true
+}
